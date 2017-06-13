@@ -1,2 +1,2 @@
 # bigfile
-upload bigfiles with javascript and php
+upload bigfiles via javascript and php
