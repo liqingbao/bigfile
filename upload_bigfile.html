@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>UPLOAD BIG FILE</title>
+	<script type="text/javascript" src="https://code.jquery.com/jquery-1.11.3.js"></script>
+	<script>
+	$(function () {
+		$('#big_file').on('change',function(){
+			//文件类型正则
+      var expFilter = /^(application\/pdf)$/i;
+      var file = this.files[0];
+      //用正则判断文件格式是否正确
+      if( !expFilter.test(file.type) ){
+        alert("文件错误，请上传PDF文档！！");
+        return false;
+      }
+      const LENGTH = 1024 * 1024 * 1;//每次上传的大小 1M
+      var totalSize = file.size;//文件总大小
+      // console.log('totalSize:'+totalSize);
+      var allTurns = Math.ceil(totalSize/LENGTH);
+      // console.log('allTurns:'+allTurns);
+      var phpFileName = '';
+      var curTurn = 1;
+      ajax_dump(file,phpFileName,curTurn,allTurns,LENGTH,totalSize);
+		});
+	});
+	function ajax_dump(file,phpFileName,curTurn,allTurns,LENGTH,totalSize)
+	{
+    var start = (curTurn - 1)*LENGTH;//每次上传的开始字节
+    var end = start + LENGTH;//每次上传的结尾字节
+    if(end > totalSize)
+    {
+     end = totalSize;
+    }
+    var fileName = file.name;//文件名
+		formData = new FormData();//每一次需要重新创建
+		tempFile = file.slice(start,end);//根据长度截取每次需要上传的数据
+		formData.append('file',tempFile);//添加数据到fd对象中
+		formData.append('fileName',encodeURI(fileName));//添加数据到fd对象中
+		formData.append('phpFileName',encodeURI(phpFileName));//添加数据到fd对象中
+		$.ajax({
+        url: 'upload_bigfile.php' ,
+        type: 'POST',
+        dataType: 'json' ,
+        data: formData,
+        // async: false, //Important:must sync
+        cache: false,
+        contentType: false,
+        processData: false,
+        success: function (data) {
+            // console.log(data);
+            if(data.status)
+            {
+            	phpFileName = data.phpFileName;//php生成的文件名
+            	$('#status').html(((end / totalSize)*100).toFixed(2) + '%');
+            	//保存文件路径值至表单
+            	if($('#file_route').val() == '')
+            	{
+            		$('#file_route').val(data.phpFileName);
+            	}
+            	//判断是否上传完成
+            	if(curTurn < allTurns)
+                {
+                	//继续调用此方法上传文件
+                  	ajax_dump(file,phpFileName,curTurn+1,allTurns,LENGTH,totalSize);
+              		//禁用提交表单
+                  	$('#btnSubmit').attr('disabled','disabled');
+                }
+                else
+                {
+                	//上传完成取消禁用表单
+                  	$('#btnSubmit').removeAttr('disabled');
+                }
+            }
+            else
+            {
+            	$('#status').html('文件上传出错，请重试');
+            }
+
+        },
+        error: function (returndata) {
+            $('#status').html('文件上传出错，请重试');
+        }
+		});
+	}
+	</script>
+</head>
+<body>
+<input type="file" id="big_file"><span id="status"></span>
+<input type="hidden" name="file_route" id="file_route">
+</body>
+</html>
